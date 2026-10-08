@@ -1,0 +1,70 @@
+[Oct 8 16:03] Linux version 7.3.0-rc6-00078-g47324d3a5b3a (root@cdomet-d) (gcc (GCC) 15.2.0, GNU ld (GNU Binutils) 2.45) #1 SMP PREEMPT_DYNAMIC Thu Oct  8 16:01:24 CE>
+[  +0.000000] Command line: BOOT_IMAGE=/vmlinuz-7.3-torvalds root=PARTUUID=cafe2737-03 ro console=ttyS0,115200n8
+[  +0.000000] x86/CPU: Model not found in latest microcode list
+[  +0.000000] BIOS-provided physical RAM map:
+[  +0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff]  System RAM
+[  +0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff]  device reserved
+[  +0.000000] BIOS-e820: [gap 0x00000000000a0000-0x00000000000effff]
+[  +0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff]  device reserved
+[  +0.000000] BIOS-e820: [mem 0x0000000000100000-0x00000000bffdcfff]  System RAM
+[  +0.000000] BIOS-e820: [mem 0x00000000bffdd000-0x00000000bfffffff]  device reserved
+[  +0.000000] BIOS-e820: [gap 0x00000000c0000000-0x00000000feffbfff]
+[  +0.000000] BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff]  device reserved
+[  +0.000000] BIOS-e820: [gap 0x00000000ff000000-0x00000000fffbffff]
+[  +0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff]  device reserved
+[  +0.000000] BIOS-e820: [mem 0x0000000100000000-0x000000023fffffff]  System RAM
+[  +0.000000] NX (Execute Disable) protection: active
+[  +0.000000] APIC: Static calls initialized
+[  +0.000000] DMI: SMBIOS 2.8 present.
+[  +0.000000] DMI: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.15.0-1 04/01/2014
+[  +0.000000] DMI: Memory slots populated: 1/1
+[  +0.000000] Hypervisor detected: KVM
+[  +0.000000] last_pfn = 0xbffdd max_arch_pfn = 0x400000000
+[  +0.000000] kvm-clock: Using msrs 4b564d01 and 4b564d00
+[  +0.000000] kvm-clock: using sched offset of 1661661286 cycles
+[  +0.000000] clocksource: kvm-clock: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+[  +0.000002] tsc: Detected 2112.000 MHz processor
+[  +0.000391] e820: update [mem 0x00000000-0x00000fff] System RAM ==> device reserved
+[  +0.000001] e820: remove [mem 0x000a0000-0x000fffff] System RAM
+[  +0.000002] last_pfn = 0x240000 max_arch_pfn = 0x400000000
+[  +0.000018] MTRR map: 4 entries (3 fixed + 1 variable; max 19), built from 8 variable MTRRs
+[  +0.000002] x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT  
+[  +0.000024] last_pfn = 0xbffdd max_arch_pfn = 0x400000000
+[  +0.001787] found SMP MP-table at [mem 0x000f5b90-0x000f5b9f]
+[  +0.000005] Using GB pages for direct mapping
+[  +0.000047] ACPI: Early table checksum verification disabled
+[  +0.000002] ACPI: RSDP 0x00000000000F59B0 000014 (v00 BOCHS )
+[  +0.000002] ACPI: RSDT 0x00000000BFFE2004 000034 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000002] ACPI: FACP 0x00000000BFFE1E20 000074 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000002] ACPI: DSDT 0x00000000BFFE0040 001DE0 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000002] ACPI: FACS 0x00000000BFFE0000 000040
+[  +0.000000] ACPI: APIC 0x00000000BFFE1E94 000110 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000002] ACPI: HPET 0x00000000BFFE1FA4 000038 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000001] ACPI: WAET 0x00000000BFFE1FDC 000028 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[  +0.000000] ACPI: Reserving FACP table memory at [mem 0xbffe1e20-0xbffe1e93]
+[  +0.000001] ACPI: Reserving DSDT table memory at [mem 0xbffe0040-0xbffe1e1f]
+[  +0.000000] ACPI: Reserving FACS table memory at [mem 0xbffe0000-0xbffe003f]
+[  +0.000001] ACPI: Reserving APIC table memory at [mem 0xbffe1e94-0xbffe1fa3]
+[  +0.000000] ACPI: Reserving HPET table memory at [mem 0xbffe1fa4-0xbffe1fdb]
+[  +0.000000] ACPI: Reserving WAET table memory at [mem 0xbffe1fdc-0xbffe2003]
+[  +0.000137] No NUMA configuration found
+[  +0.000001] Faking a node at [mem 0x0000000000000000-0x000000023fffffff]
+[  +0.000001] NODE_DATA(0) allocated [mem 0x23fffc680-0x23fffffff]
+[  +0.000395] ACPI: PM-Timer IO Port: 0x608
+[  +0.000008] ACPI: LAPIC_NMI (acpi_id[0xff] dfl dfl lint[0x1])
+[  +0.000048] IOAPIC[0]: apic_id 0, version 17, address 0xfec00000, GSI 0-23
+[  +0.000002] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+[  +0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+[  +0.000001] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+[  +0.000001] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+[  +0.000000] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+[  +0.000001] ACPI: Using ACPI (MADT) for SMP configuration information
+[  +0.000001] ACPI: HPET id: 0x8086a201 base: 0xfed00000
+[  +0.000001] TSC deadline timer available
+[  +0.000002] CPU topo: Max. logical packages:   1
+[  +0.000000] CPU topo: Max. logical nodes:      1
+[  +0.000000] CPU topo: Num. nodes per package:  1
+[  +0.000002] CPU topo: Max. logical dies:       1
+[  +0.000000] CPU topo: Max. dies per package:   1
+[  +0.000002] CPU topo: Max. threads per core:   1
+[  +0.000000] CPU topo: Num. cores per package:    20

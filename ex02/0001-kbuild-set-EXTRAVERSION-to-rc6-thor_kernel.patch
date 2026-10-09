@@ -1,0 +1,30 @@
+From 9a4e5a33590176fbbc3c26880ae20a2e166368f5 Mon Sep 17 00:00:00 2001
+From: Coralie Domet de Mont <cdomet-d@student.42lyon.fr>
+Date: Fri, 9 Oct 2026 17:34:10 +0200
+Subject: [PATCH] kbuild: set EXTRAVERSION to -rc6-thor_kernel
+
+Updated EXTRAVERSION as per the Little Pinguin Assignment 02
+instructions.
+
+Signed-off-by: Coralie Domet de Mont <cdomet-d@student.42lyon.fr>
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 7c855e6fe544..9d5c6932d3ad 100644
+--- a/Makefile
++++ b/Makefile
+@@ -2,7 +2,7 @@
+ VERSION = 7
+ PATCHLEVEL = 3
+ SUBLEVEL = 0
+-EXTRAVERSION = -rc6
++EXTRAVERSION = -rc6-thor_kernel
+ NAME = Baby Opossum Posse
+ 
+ # *DOCUMENTATION*
+
+base-commit: 47324d3a5b3abd781295044d01d92d09f184e872
+-- 
+2.50.1

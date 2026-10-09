@@ -19,9 +19,25 @@ I chose to not use `localmodconfig` as this [documentation](https://docs.kernel.
 
 ![However](.assets/cependant-jdg.gif)
 
-Since we will be developpig modules later on, I recommend your ensure `CONFIG_MODULE_DEBUG` is set to `=y`. Indeed, this parameter *Allows you to enable / disable features which can help you debug modules.*, which sounds helpful [[lkddb](https://cateee.net/lkddb/web-lkddb/MODULE_DEBUG.html), 08.10.2026]
+Since we will be developpig modules later on, I recommend you enrich your configuration file with debug options. 
 
-Once you are satisfied with the config, you can build the kernel and update your grub configuration to take into account your new kernel.
+Rename your `.congif` file to avoid overwritting it, then use `make menuconfig` to more option. This will create a new `.config` file, which we will later merge with the one we got from `make olddefconfig`.
+
+[The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) recommends having the following options enabled: 
+
+- **CONFIG_DEBUG_INFO**: include debug symbols so gdb, addr2line, and objdump can map crash addresses to source lines.
+- **CONFIG_DYNAMIC_DEBUG**: enable runtime-switchable pr_debug() statements (see Item 2).
+- **CONFIG_KASAN (Kernel Address Sanitizer)**: instruments memory accesses to detect out-of-bounds, use-after-free, and other memory errors at the cost of roughly 2× memory usage and some CPU overhead.
+- **CONFIG_LOCKDEP (lock dependency checker)**: detects potential deadlocks (lock order inversions, sleeping under spinlocks, wrong lock type for context) at runtime, before they actually hang the system.
+- **CONFIG_DEBUG_ATOMIC_SLEEP**: flags attempts to sleep in atomic context, catching the most common spinlock misuse.
+- **CONFIG_MODULE_FORCE_UNLOAD**: allows rmmod -f as a last resort during development, but use it with care because force-unloading can hide lifetime bugs and leave the kernel in an inconsistent state.
+
+Using `menuconfig`, you can use `/` and then type the option name to find what toggles manages it. Save that new configuration - I'll call that file `.config` in my example - then use
+
+```sh
+./scripts/kconfig/merge_config.sh config.base config .config
+```
+Once you are satisfied with the config, you can build the kernel, and all that jazz, and you're done !
 
 - [**Displaying kernel messages**](https://linuxvox.com/blog/kern-log-linux/)
 - [**Quick Linux build**](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html)

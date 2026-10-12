@@ -19,11 +19,11 @@ I chose to not use `localmodconfig` as this [documentation](https://docs.kernel.
 
 ![However](.assets/cependant-jdg.gif)
 
-Since we will be developpig modules later on, I recommend you enrich your configuration file with debug options. 
+Since we will be developpig modules later on, I recommend you enrich your configuration file with debug options.
 
 Rename your `.congif` file to avoid overwritting it, then use `make menuconfig` to more option. This will create a new `.config` file, which we will later merge with the one we got from `make olddefconfig`.
 
-[The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) recommends having the following options enabled: 
+[The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) recommends having the following options enabled:
 
 - **CONFIG_DEBUG_INFO**: include debug symbols so gdb, addr2line, and objdump can map crash addresses to source lines.
 - **CONFIG_DYNAMIC_DEBUG**: enable runtime-switchable pr_debug() statements (see Item 2).
@@ -37,9 +37,10 @@ Using `menuconfig`, you can use `/` and then type the option name to find what t
 ```sh
 ./scripts/kconfig/merge_config.sh config.base config .config
 ```
-Once you are satisfied with the config, you can build the kernel, and all that jazz, and you're done ! Don't forget to do `make modules_install` to ensure you have the correct libraries for the next steps of the challenge. 
 
-(personnaly, I followed the LFS step of the kernel build - it helps covering the important steps of building the kernel).
+Once you are satisfied with the config, you can build the kernel, and all that jazz, and you're done ! Don't forget to do `make modules_install` to ensure you have the correct libraries for the next steps of the challenge.
+
+(personnaly, [I followed the LFS step of the kernel build](https://www.linuxfromscratch.org/lfs/view/development/chapter10/kernel.html) - it helps covering the important steps of building the kernel. Be mindful of using the latest version, though, as we are working witht the "current" Linux source).
 
 - [**Displaying kernel messages**](https://linuxvox.com/blog/kern-log-linux/)
 - [**Quick Linux build**](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html)
@@ -47,7 +48,7 @@ Once you are satisfied with the config, you can build the kernel, and all that j
 
 ## ex01 - Hello World Module
 
-That one is pretty interresting ; we get to discover `kbuild`, which is essentially `make` with conventions. It relies on `kconfig`, which is what helps the user create the initial `.config` file. 
+That one is pretty interresting ; we get to discover `kbuild`, which is essentially `make` with conventions. It relies on `kconfig`, which is what helps the user create the initial `.config` file.
 
 The Kernel build system is, expectedly, quite heavy. The sources get recursively compiled based on the configuration files, with the top-level Makefile descending into children directories to call on the resident Makefile.
 
@@ -86,5 +87,60 @@ Here, we are creating an out-of-tree (or external) module, which means the top-l
 
 ## ex02 - Patching
 
+This is not complicated, especially if using the `git format-patch` command.
+
+To do so, apply your changes and commit them (you don't have to push). You can then use `git format-patch` with the appropriate parameters to automatically generate a `.patch` file that fits the Kernel Patch Standards.
+
 - [**Submitting patches**](https://www.kernel.org/doc/html/latest/process/submitting-patches.html)
 - [**Using git format-patch**](https://git-scm.com/docs/git-format-patch)
+- 
+
+## ex03 - Coding Style
+
+- [**Linux Coding Style**](https://www.kernel.org/doc/html/latest/process/coding-style.html)
+
+## ex04 - Device Linked Module
+
+[**Virtual Filesystem (VFS)**](https://en.wikipedia.org/wiki/Virtual_file_system): an abstraction layer sitting in between userspace and the filesystems implementation. When a syscall originates from the userspace (`open`, `read`, `write`...), the call transits via the VFS. This is the *strict* name of the kernel's abstraction layer that enables actions on the filesystems.
+
+[**Pseudo Filesystem**](https://en.wikipedia.org/wiki/Synthetic_file_system): a filesystem *implementation* that exposes kernel state or lives in memory. It is rules by the VFS, but doesn't rely on a physical device. `/sys` and `/proc` are pseudo filesystems: even if they present files to the users, most live in memory and their contents are generated on demand by the kernel. For instance, the directories in `/proc` representing the running processes come and go as the processes live and die.
+
+[**sysfs**](https://en.wikipedia.org/wiki/Sysfs): a pseudo filesystem that exposes the kernel's devide model to user space in a hierarchy of files.
+
+### The device model
+
+- [Recommended reading: Ch. 14 of *Linux Device Drivers, Third Edition*](https://static.lwn.net/images/pdf/LDD3/ch14.pdf)
+- [*Linux Device Drivers, Third Edition*, full book](https://lwn.net/Kernel/LDD3/)
+
+#### kobject, ksets, and subsystems
+
+- *kobject* is a struct that supports the entire device model. It is declared thusly: (from `include/linux/kobject.h`)
+
+```c
+struct kobject {
+	const char				*name;
+	struct list_head		entry;
+	struct kobject			*parent;
+	struct kset				*kset;
+	const struct kobj_type	*ktype;
+	struct kernfs_node		*sd; /* sysfs directory entry */
+	struct kref				kref;
+
+	unsigned int state_initialized:1;
+	unsigned int state_in_sysfs:1;
+	unsigned int state_add_uevent_sent:1;
+	unsigned int state_remove_uevent_sent:1;
+	unsigned int uevent_suppress:1;
+
+#ifdef CONFIG_DEBUG_KOBJECT_RELEASE
+	struct delayed_work	release;
+#endif
+};
+```
+
+Note the `unsigned int` have `:1` appended to them. This is a **bit-field**, which allows us to pack the values of all five flags into the space of a single unsigned int (32 bits). This is significant, as it allows the developper to save on padding space, reducing the size of the struct.
+
+## Bibliography
+
+- [Message logging with printk](https://www.kernel.org/doc/html/latest/core-api/printk-basics.html)
+- [The always useful list of GNU warning options](https://gcc.gnu.org/onlinedocs/gcc-15.2.0/gcc/Warning-Options.html#index-Wno-old-style-declaration)

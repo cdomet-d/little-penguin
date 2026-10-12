@@ -1,13 +1,13 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-static inline int hello(void) 
+static __init int hello(void)
 {
 	pr_info("Hello world!\n");
 	return 0;
 }
 
-static inline void goodbye(void) 
+static __exit void goodbye(void)
 {
 	pr_info("Cleaning up module.\n");
 }
@@ -17,4 +17,4 @@ module_exit(goodbye);
 
 MODULE_DESCRIPTION("Hello World Module");
 MODULE_AUTHOR("cdomet-d");
-MODULE_LICENSE("Really ?");
+MODULE_LICENSE("GPL");

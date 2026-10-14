@@ -1,0 +1,14 @@
+root@cdomet-d ~ $ cat /etc/udev/rules.d/keyboard-hotplug.rules 
+# Assignement ex04 of Little Pinguin
+# Modify the kernel module you wrote in Assignment 01 so that it is automatically
+# loaded when any USB keyboard is plugged in. This should be triggered by the ap-
+# propriate userspace hotplug tools, which may include depmod, kmod, udev, mdev,
+# or systemd, depending on your distribution.
+
+SUBSYSTEM=="usb",\
+ENV{DEVTYPE}=="usb_interface",\
+ACTION=="add",\
+ATTR{bInterfaceClass}=="03",\
+ATTR{bInterfaceSubClass}=="01",\
+ATTR{bInterfaceProtocol}=="01",\
+RUN+="/sbin/modprobe usb_hotplug"

@@ -1,0 +1,16 @@
+root@cdomet-d ~ $ dmesg -T | tail -15
+[Wed Oct 14 11:08:00 2026] Adding 2097148k swap on /dev/vda2.  Priority:1 extents:1 across:2097148k 
+[Wed Oct 14 11:08:00 2026] EXT4-fs (vda3): re-mounted c54d3aeb-ffc7-4a84-b520-c4756fc7d40f.
+[Wed Oct 14 11:08:00 2026] EXT4-fs (vda3): re-mounted c54d3aeb-ffc7-4a84-b520-c4756fc7d40f r/w.
+[Wed Oct 14 11:08:00 2026] EXT4-fs (vda1): mounting ext2 file system using the ext4 subsystem
+[Wed Oct 14 11:08:00 2026] EXT4-fs (vda1): mounted filesystem 5e6b410d-5ba8-460d-9930-b9d63d0b72b0 r/w without journal. Quota mode: none.
+[Wed Oct 14 11:11:35 2026] usb 1-1: new high-speed USB device number 2 using xhci_hcd
+[Wed Oct 14 11:11:35 2026] usb 1-1: New USB device found, idVendor=0627, idProduct=0001, bcdDevice= 0.00
+[Wed Oct 14 11:11:35 2026] usb 1-1: New USB device strings: Mfr=1, Product=4, SerialNumber=11
+[Wed Oct 14 11:11:35 2026] usb 1-1: Product: QEMU USB Keyboard
+[Wed Oct 14 11:11:35 2026] usb 1-1: Manufacturer: QEMU
+[Wed Oct 14 11:11:35 2026] usb 1-1: SerialNumber: 68284-0000:00:04.0-1
+[Wed Oct 14 11:11:35 2026] input: QEMU QEMU USB Keyboard as /devices/pci0000:00/0000:00:04.0/usb1/1-1/1-1:1.0/0003:0627:0001.0001/input/input4
+[Wed Oct 14 11:11:35 2026] hid-generic 0003:0627:0001.0001: input,hidraw0: USB HID v1.11 Keyboard [QEMU QEMU USB Keyboard] on usb-0000:00:04.0-1/input0
+[Wed Oct 14 11:11:35 2026] usb_hotplug: loading out-of-tree module taints kernel.
+[Wed Oct 14 11:11:35 2026] Hello world!

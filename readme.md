@@ -5,6 +5,21 @@ The genus Eudyptula from Ancient Greek εὖ (eû), meaning "well", δύπτης
 For many years, a white-flippered form of the little penguin found only in North Canterbury, New Zealand was considered either a separate species, Eudyptula albosignata, or just a subspecies, Eudyptula minor albosignata. Analysis of mtDNA revealed that Eudyptula falls instead into two groups: a western one, found along the southern coast of Australia and the Otago region of New Zealand, and another found in the rest of New Zealand.[4] E. novaehollandiae probably arrived in New Zealand from Australia less than 500 years ago, following the local extinction of E. minor in Otago.[5]
 [The Eudyptula Challenge](http://eudyptula-challenge.org/)
 
+- [Little Pinguin](#little-pinguin)
+	- [ex00 - Building the kernel](#ex00---building-the-kernel)
+	- [ex01 - Hello World Module](#ex01---hello-world-module)
+		- [Sources](#sources)
+	- [ex02 - Patching](#ex02---patching)
+	- [ex03 - Coding Style](#ex03---coding-style)
+	- [ex04 - Device Linked Module](#ex04---device-linked-module)
+		- [The device model](#the-device-model)
+			- [kobject](#kobject)
+			- [ksets](#ksets)
+			- [Subsystems](#subsystems)
+		- [Sysfs Operations](#sysfs-operations)
+		- [Simulating a keyboard hotplug in QEMU](#simulating-a-keyboard-hotplug-in-qemu)
+	- [General applications sources](#general-applications-sources)
+
 ## ex00 - Building the kernel
 
 The hardest thing about this part was fixing the disk corruption that happened on my LFS distributions, though I guess I learned stuff `(:`
@@ -76,14 +91,11 @@ Here, we are creating an out-of-tree (or external) module, which means the top-l
 
 ### Sources
 
-- [**In-Tree vs Out-Of-Tree Kernel Modules**](https://medium.com/@adityapatnaik27/linux-kernel-module-in-tree-vs-out-of-tree-build-77596fc35891)
 - [**Definition and Examples**](https://linux-kernel-labs.github.io/refs/heads/master/labs/kernel_modules.html)
-
-### Official Kernel documentation
-
+- [**In-Tree vs Out-Of-Tree Kernel Modules**](https://medium.com/@adityapatnaik27/linux-kernel-module-in-tree-vs-out-of-tree-build-77596fc35891)
 - [**Kbuild documentation**](https://docs.kernel.org/kbuild/index.html)
-- [**More information and complicated kbuild/Makefiles examples**](https://www.kernel.org/doc/html/latest/kbuild/modules.html), including multi-files build.
 - [**More information about the kernel build in general**](https://www.kernel.org/doc/html/latest/kbuild/makefiles.html)
+- [**More information and complicated kbuild/Makefiles examples**](https://www.kernel.org/doc/html/latest/kbuild/modules.html), including multi-files build.
 
 ## ex02 - Patching
 
@@ -93,7 +105,7 @@ To do so, apply your changes and commit them (you don't have to push). You can t
 
 - [**Submitting patches**](https://www.kernel.org/doc/html/latest/process/submitting-patches.html)
 - [**Using git format-patch**](https://git-scm.com/docs/git-format-patch)
-- 
+-
 
 ## ex03 - Coding Style
 
@@ -112,9 +124,15 @@ To do so, apply your changes and commit them (you don't have to push). You can t
 - [Recommended reading: Ch. 14 of *Linux Device Drivers, Third Edition*](https://static.lwn.net/images/pdf/LDD3/ch14.pdf)
 - [*Linux Device Drivers, Third Edition*, full book](https://lwn.net/Kernel/LDD3/)
 
-#### kobject, ksets, and subsystems
+**WARNING:** this is my understanding from the LDD3. It might be wrong, or outdated ; I mostly write those as a way to understand things better. **Feel free to create an issue or fork and update :)**
 
-- *kobject* is a struct that supports the entire device model. It is declared thusly: (from `include/linux/kobject.h`)
+#### kobject
+
+The struct that supports the entire device model. It's never used on its own, but instead embedded in other structs that rely on it.
+
+Most importantly, it holds a reference counter that allows the device to remain in memory as long as something is referencing it, and then be released as soon nothing does. That release function is a callback (which, in C, is a function pointer), held in `ktype`. This enables all devices of a given type to share a release function, reducing the memory needs while still allowing tailored behavior for different devices.
+
+It is declared thusly: (from `include/linux/kobject.h`):
 
 ```c
 struct kobject {
@@ -140,7 +158,74 @@ struct kobject {
 
 Note the `unsigned int` have `:1` appended to them. This is a **bit-field**, which allows us to pack the values of all five flags into the space of a single unsigned int (32 bits). This is significant, as it allows the developper to save on padding space, reducing the size of the struct.
 
-## Bibliography
+- *`container_of()`* is a macro used to recover the address of a containing struct from one of its member. It's used in places where the kernel only has, for instance, a pointer to a `kobj` member, and it needs to access the containing `cdev` struct. [Detailed explanations are available here](https://radek.io/posts/magical-container_of-macro/).
+
+#### ksets
+
+A `kset` is a collection of `kobj`. Any `kobj` is a `kset` is referenced by that `kset`.
+
+Best decribed by their comment:
+
+```c
+/**
+ * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
+ *
+ * A kset defines a group of kobjects.  They can be individually
+ * different "types" but overall these kobjects all want to be grouped
+ * together and operated on in the same manner.  ksets are used to
+ * define the attribute callbacks and other common events that happen to
+ * a kobject.
+ *
+ * @list: the list of all kobjects for this kset
+ * @list_lock: a lock for iterating over the kobjects
+ * @kobj: the embedded kobject for this kset (recursion, isn't it fun...)
+ * @uevent_ops: the set of uevent operations for this kset.  These are
+ * called whenever a kobject has something happen to it so that the kset
+ * can add new environment variables, or filter out the uevents if so
+ * desired.
+ */
+
+```
+
+It's worth noting that a `kset` contains a list of all the `kobjs` it holds, but also a single `kobj` that describes itself.
+
+#### Subsystems
+
+=> **THIS PART IS OUTDATED**
+
+The subsystems are the highest level representations of the device model. It's basically a struct containing a `kset` and a [rw_semaphore](https://www.kernel.org/doc/html/latest/locking/locktypes.html), and the driver's developper need not create any new ones. One should simply assign their kset to the appropriate subsystem (`/sys/block`, `/sys/device`...) so that it may show up at the correct place in user space and appear in the correct hierarchy.
+
+Examples of kobject and ksample usage are available in the kernel source tree, at `/sources/linux/samples/kobject/{kobject-example.c,kset-example.c}`.
+
+Here, I got lost and discovered the concept of [RCU](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) and the [percpu-rw-semaphore](https://docs.kernel.org/locking/percpu-rw-semaphore.html). Enjoy the sidequest[^1]!
+
+[^1]: The RCU semaphore is used to ensure that the kset's list of kobjects can only be modified by a single thread or CPU at a time, but read only operations may continue during part of the modification or destruction process ; [that is achieved by separating the process in two parts](https://www.kernel.org/doc/html/latest/RCU/rcu.html), removal then reclamation; it's used to [protect read-mostly linked lists](https://www.kernel.org/doc/html/latest/RCU/listRCU.html), such as `ksets`.
+
+### Sysfs Operations
+
+Now that we covered (vaguely) kobjects and understood that they are the structure at work behind every sysfs mechanism, we are going to look at the operations that rely on `kobjs`.
+
+For every directory that we find in /sys (which is normally where *sysfs* is mounted), there is an underlying `kobj` that was added with `kobject_add`. That directory name is specified by `kobject_set_name`, and its place in the hierarchy defined based on the `parent` tag. It contains kernel-generated file(s) representing the `kobj`'s attributes.
+
+All that is very nice and well, but I didn't find it really helpful to make the module autoload, so I've moved on to greener pastures. I admit that I relied on AI for this, since basic sources were pretty hard to come by.
+
+It's worth noting that my LFS runs `udev`, which will become relevant to the exercice soon.
+
+### Simulating a keyboard hotplug in QEMU
+
+I had to jump through a few hoops here, so I'll document it so you don't have to run in circles like me.
+
+**NB**: I run my VM with `--nographic` because there are few things I hate more than a VM's console ; mostly I communicate with the guest through SSH, but I also redirected the kernel boot messages to `/dev/ttyS0` so I could monitor the booting process.
+
+Now in order for us to "plug in" a keyboard, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controler, allowing us to connect a virtual keyboard.
+
+[^2]: XHCI stands for E[xtensible Host Controler Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
+
+Then, we have to `ctrl + c` `a` in the console to access the Qemu monitor. If that doesn't work for you, [you can read my book about it](qemu-sidequest.md).
+
+
+
+## General applications sources
 
 - [Message logging with printk](https://www.kernel.org/doc/html/latest/core-api/printk-basics.html)
 - [The always useful list of GNU warning options](https://gcc.gnu.org/onlinedocs/gcc-15.2.0/gcc/Warning-Options.html#index-Wno-old-style-declaration)

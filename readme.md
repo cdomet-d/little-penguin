@@ -5,37 +5,37 @@ The genus Eudyptula from Ancient Greek εὖ (eû), meaning "well", δύπτης
 For many years, a white-flippered form of the little penguin found only in North Canterbury, New Zealand was considered either a separate species, Eudyptula albosignata, or just a subspecies, Eudyptula minor albosignata. Analysis of mtDNA revealed that Eudyptula falls instead into two groups: a western one, found along the southern coast of Australia and the Otago region of New Zealand, and another found in the rest of New Zealand.[4] E. novaehollandiae probably arrived in New Zealand from Australia less than 500 years ago, following the local extinction of E. minor in Otago.[5]
 [The Eudyptula Challenge](http://eudyptula-challenge.org/)
 
-- [Little Pinguin](#little-pinguin)
-	- [ex00 - Building the kernel](#ex00---building-the-kernel)
-	- [ex01 - Hello World Module](#ex01---hello-world-module)
-		- [Sources](#sources)
-	- [ex02 - Patching](#ex02---patching)
-	- [ex03 - Coding Style](#ex03---coding-style)
-	- [ex04 - Device Linked Module](#ex04---device-linked-module)
-		- [Simulating a keyboard hotplug in QEMU](#simulating-a-keyboard-hotplug-in-qemu)
-		- [Autoloading the module](#autoloading-the-module)
-		- [Udev rules](#udev-rules)
-		- [Device table](#device-table)
-	- [ex05 - Misc Character Driver](#ex05---misc-character-driver)
-	- [General applications sources](#general-applications-sources)
+- Little Pinguin
+    - ex00 - Building the kernel
+    - ex01 - Hello World Module
+        - Sources
+    - ex02 - Patching
+    - ex03 - Coding Style
+    - ex04 - Device Linked Module
+        - Simulating a keyboard hotplug in Qemu
+        - Autoloading the module
+        - Udev rules
+        - Device table
+    - ex05 - Misc Character Driver
+    - General applications sources
 
 ## ex00 - Building the kernel
 
 The hardest thing about this part was fixing the disk corruption that happened on my LFS distributions, though I guess I learned stuff `(:`
 
-Getting the kernel from [git.kernel.org](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/) is quite straightforward, though it requires installing git on your LFS distribution - which I didn't do before, but is easily managed by following the appropriate [BLFS page](https://linuxfromscratch.org/blfs/view/stable/general/git.html) (make sure to use the approriate version of BLFS, the one that matches your LFS).
+Getting the kernel from [git.kernel.org](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/) is quite straightforward, though it requires installing git on your LFS distribution - which I hadn't done before, but is easily managed by following the appropriate [BLFS page](https://linuxfromscratch.org/blfs/view/stable/general/git.html) (make sure to use the appropriate version of BLFS, the one that matches your LFS).
 
 Then, you may either go through the manual configuration of the kernel with `make menuconfig`  or `make defconfig`. However, as I did not quite fancy doing that, I recovered my LFS `.config` and used `make olddefconfig`, which :
 
-> The make target `olddefconfig` (and the yes "" | used when utilizing localmodconfig) will set any undefined build options to their default value. This among others will disable many kernel features that were introduced after your base kernel was released. [[doc.kernel.org](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html), 08.10.2026]
+> The make target `olddefconfig` (and the yes ""   used when utilizing localmodconfig) will set any undefined build options to their default value. This among others will disable many kernel features that were introduced after your base kernel was released. [[doc.kernel.org](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html), 08.10.2026]
 
-I chose to not use `localmodconfig` as this [documentation](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html) warns that only the kernel modules related to actions already performed wouldn't be autoloaded when said action is perfomed after kernel compilation. As I'm not quite sure how much stuff I'll do with my distribution, I chose to remain as I was ; you do what you think is best for your usage.
+I chose to not use `localmodconfig` as this [documentation](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html) warns that only the kernel modules related to actions already performed wouldn't be autoloaded when said action is performed after kernel compilation. As I'm not quite sure how much stuff I'll do with my distribution, I chose to remain as I was ; you do what you think is best for your usage.
 
 ![However](.assets/cependant-jdg.gif)
 
-Since we will be developpig modules later on, I recommend you enrich your configuration file with debug options.
+Since we will be developing modules later on, I recommend you enrich your configuration file with debug options.
 
-Rename your `.congif` file to avoid overwritting it, then use `make menuconfig` to more option. This will create a new `.config` file, which we will later merge with the one we got from `make olddefconfig`.
+Rename your `.config` file to avoid overwriting it, then use `make menuconfig` to get more options. This will create a new `.config` file, which we will later merge with the one we got from `make olddefconfig`.
 
 [The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) recommends having the following options enabled:
 
@@ -46,7 +46,7 @@ Rename your `.congif` file to avoid overwritting it, then use `make menuconfig` 
 - **CONFIG_DEBUG_ATOMIC_SLEEP**: flags attempts to sleep in atomic context, catching the most common spinlock misuse.
 - **CONFIG_MODULE_FORCE_UNLOAD**: allows rmmod -f as a last resort during development, but use it with care because force-unloading can hide lifetime bugs and leave the kernel in an inconsistent state.
 
-Using `menuconfig`, you can use `/` and then type the option name to find what toggles manages it. Save that new configuration - I'll call that file `.config` in my example - then use
+Using `menuconfig`, you can use `/` and then type the option name to find what toggle manages it. Save that new configuration - I'll call that file `.config` in my example - then use
 
 ```sh
 ./scripts/kconfig/merge_config.sh config.base config .config
@@ -54,7 +54,7 @@ Using `menuconfig`, you can use `/` and then type the option name to find what t
 
 Once you are satisfied with the config, you can build the kernel, and all that jazz, and you're done ! Don't forget to do `make modules_install` to ensure you have the correct libraries for the next steps of the challenge.
 
-(personnaly, [I followed the LFS step of the kernel build](https://www.linuxfromscratch.org/lfs/view/development/chapter10/kernel.html) - it helps covering the important steps of building the kernel. Be mindful of using the latest version, though, as we are working witht the "current" Linux source).
+(personally, [I followed the LFS step of the kernel build](https://www.linuxfromscratch.org/lfs/view/development/chapter10/kernel.html) - it helps cover the important steps of building the kernel. Be mindful of using the latest version, though, as we are working with the "current" Linux source).
 
 - [**Displaying kernel messages**](https://linuxvox.com/blog/kern-log-linux/)
 - [**Quick Linux build**](https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html)
@@ -62,11 +62,11 @@ Once you are satisfied with the config, you can build the kernel, and all that j
 
 ## ex01 - Hello World Module
 
-That one is pretty interresting ; we get to discover `kbuild`, which is essentially `make` with conventions. It relies on `kconfig`, which is what helps the user create the initial `.config` file.
+That one is pretty interesting ; we get to discover `kbuild`, which is essentially `make` with conventions. It relies on `kconfig`, which is what helps the user create the initial `.config` file.
 
 The Kernel build system is, expectedly, quite heavy. The sources get recursively compiled based on the configuration files, with the top-level Makefile descending into children directories to call on the resident Makefile.
 
-Here, we care mostly about is the way the build system compiles modules. [The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) provide an example Makefile, which I've tweaked to compile my own module:
+Here, what we care mostly about is the way the build system compiles modules. [The Linux Kernel Programming Guide](https://sysprog21.github.io/lkmpg/) provides an example Makefile, which I've tweaked to compile my own module:
 
 ```make
 # The value of obj-m specifies our source file, and the final name of our kernel will be <obj-m_value>.ko
@@ -78,13 +78,13 @@ obj-m += main.o # `obj-m` allows kbuild to know we're creating a module.
 PWD := $(CURDIR)
 
 all:
-	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+    $(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 clean:
-	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+    $(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 ```
 
-It's not very detailed, but it lets us understand that our job as kernel module developer is not to write our own compilation rules ; instead, we list our sources (with `obj-m`), then we simply call the top-level Kernel Makefile `modules` rule, which will do all the compilation work, thus avoiding flag mismatch and other horrors.
+It's not very detailed, but it lets us understand that our job as kernel module developers is not to write our own compilation rules ; instead, we list our sources (with `obj-m`), then we simply call the top-level Kernel Makefile `modules` rule, which will do all the compilation work, thus avoiding flag mismatches and other horrors.
 ****
 Here, we are creating an out-of-tree (or external) module, which means the top-level Makefile needs our working directory to output the final `.ko` file here instead of mixing it up with the kernel tree.
 
@@ -114,19 +114,19 @@ To do so, apply your changes and commit them (you don't have to push). You can t
 
 You can peruse my understanding of the recommended reading at [LDD3_device_model.md](./LDD3_device_model.md).
 
-I found it a pretty unrelevant reading recommandation ; it mostly focuses on the inner working of `sysfs`, which helps only very marginally to write device drivers.
+I found it a pretty irrelevant reading recommendation ; it mostly focuses on the inner workings of `sysfs`, which helps only very marginally to write device drivers.
 
-### Simulating a keyboard hotplug in QEMU
+### Simulating a keyboard hotplug in Qemu
 
-In order for us to "plug in" a keyboard our virtual machine, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controler, allowing us to connect a virtual keyboard.
+In order for us to "plug in" a keyboard into our virtual machine, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controller, allowing us to connect a virtual keyboard.
 
-[^2]: XHCI stands for E[xtensible Host Controler Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
+[^2]: XHCI stands for E[xtensible Host Controller Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
 
-Then, we must gain access to the Qemu monitor. If you use `--nographic`, [you can read my book about it](qemu-sidequest.md#redirecting-the-qemu-monitor-to-a-tcp-socket-because-aint-nobody-got-time-for-that).
+Then, we must gain access to the Qemu monitor. If you use `--nographic`, you can read my book about it.
 
-Once you managed to access the Qemu monitor, you can use the [monitor command](https://www.qemu.org/docs/master/system/monitor.html) `device_add` and `device_del` to plug and unplug your keyboard. Here is the [list of USB devices](https://www.qemu.org/docs/master/system/devices/usb.html#connecting-usb-devices) supported by Qemu.
+Once you manage to access the Qemu monitor, you can use the [monitor command](https://www.qemu.org/docs/master/system/monitor.html) `device_add` and `device_del` to plug and unplug your keyboard. Here is the [list of USB devices](https://www.qemu.org/docs/master/system/devices/usb.html#connecting-usb-devices) supported by Qemu.
 
-In this instance, we care about `usb-kdb`:
+In this instance, we care about `usb-kbd`:
 
 > usb-kbd<br>Standard USB keyboard. Will override the PS/2 keyboard (if present).
 
@@ -146,11 +146,11 @@ Then, in your guest, you can run:
 udevadm monitor --kernel
 ```
 
-That will display the kernel events as they happen, allowing you to see as your keyboard connects and disconnects. This allows us to get some informations we'll need later, but it's not mandatory ; said information can be recovered by inspecting the devices files or using `udev` tools (we will get to it).
+That will display the kernel events as they happen, allowing you to see as your keyboard connects and disconnects. This allows us to get some information we'll need later, but it's not mandatory ; said information can be recovered by inspecting the device files or using `udev` tools (we will get to it).
 
 ### Autoloading the module
 
-Now, as the subject hints, we have two way to go about making the module autoload.
+Now, as the subject hints, we have two ways to go about making the module autoload.
 
 - A rules file, appropriate for your system.
 - Your updated code.
@@ -179,13 +179,13 @@ MODULE_DEVICE_TABLE (usb, skel_table);
 
 > There are other macros that can be used in describing a struct usb_device_id for drivers that support a whole class of USB drivers. See usb.h for more information on this.
 
-`usb_device_id` allows us to specify informations describing one or several USB devices. To explain how, we have to go on a small(ish) sidequest to the USB protocol specification.
+`usb_device_id` allows us to specify information describing one or several USB devices. To explain how, we have to go on a small(ish) sidequest to the USB protocol specification.
 
 USB devices are identified by a series of fields, the details of which can be found in section 9.6.1 of the [Universal Serial Bus 3.1 Specification](https://p2lu.github.io/posts/displayport/Universal_Serial_Bus_3_1_Specification.pdf), in the table 9-11 (page 455 of the PDF)[^3]. You can also [view the table here](./usb_device_fields.md).
 
-[^3]:Yes, finding this was very annoying - I had to go trough [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbspec/ns-usbspec-_usb_device_descriptor).
+[^3]:Yes, finding this was very annoying - I had to go through [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbspec/ns-usbspec-_usb_device_descriptor).
 
-Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which need to contain the values of `idVendor` and `idProduct`.Setting our usb module to be recognized by its vendor and product ID is a bit restrictive for a keyboard though. - it's useful for more specific devices, such as printers or, I don't know, a VR headset. We just want the module to load whenever we plug in any keyboard. The [USB header documentation](https://docs.kernel.org/driver-api/usb/usb.html#usb-header) tells us that:
+Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which need to contain the values of `idVendor` and `idProduct`. Setting our usb module to be recognized by its vendor and product ID is a bit restrictive for a keyboard though. - it's useful for more specific devices, such as printers or, I don't know, a VR headset. We just want the module to load whenever we plug in any keyboard. The [USB header documentation](https://docs.kernel.org/driver-api/usb/usb.html#usb-header) tells us that:
 
 > **What Makes Good usb_device_id Tables:**
 
@@ -195,9 +195,9 @@ Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which n
 
 > Matches based on interface class/subclass/protocol are the most general; they let drivers bind to any interface on a **multiple-function device**. Use the USB_INTERFACE_INFO macro, or its siblings, to match class-per-interface style devices (as recorded in bInterfaceClass).
 
-Before we can choose between using USB_DEVICE_INFO or USB_INTERFACE_INFO, we must understand what is a single-function device VS a multipe-function device and which type keyboards belong to.
+Before we can choose between using USB_DEVICE_INFO or USB_INTERFACE_INFO, we must understand what a single-function device is VS a multiple-function device and which type keyboards belong to.
 
-Keyboards can be multiple-function devices (think a keaboard with a trackpad, for instance), and they inform the operating system of this fact by
+Keyboards can be multiple-function devices (think a keyboard with a trackpad, for instance), and they inform the operating system of this fact by
 
 so the safest bet is to use [`USB_INTERFACE_INFO`](https://egeeks.github.io/kernal/usb/API-USB-INTERFACE-INFO.html).
 

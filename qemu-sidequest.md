@@ -64,3 +64,9 @@ If you use `SysV`, simply add that line to your [`/etc/inittab` file](https://ma
 #ID:RUNLEVEL:ACTION:COMMAND
 [UNIQUE_ID]:12345:respawn:/sbin/agetty -L --noclear ttyS0 115200
 ```
+
+## Redirecting the Qemu monitor to a TCP socket (because ain't nobody got time for that)
+
+Since we used the serial to output the content of our guest, access to the Qemu monitor can get a bit finnicky. I got tired of it real quick and instead chose to redirect the monitor to a TCP port that I access with `nc`.
+
+If you would like to do the same, just add `-monitor tcp:127.0.0.1:4444,server,nowait \` to your Qemu invocation, then run `nc 127.0.0.1 4444`. Voila, you have monitor access !

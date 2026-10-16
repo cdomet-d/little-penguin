@@ -12,12 +12,11 @@ For many years, a white-flippered form of the little penguin found only in North
 	- [ex02 - Patching](#ex02---patching)
 	- [ex03 - Coding Style](#ex03---coding-style)
 	- [ex04 - Device Linked Module](#ex04---device-linked-module)
-		- [The device model](#the-device-model)
-			- [kobject](#kobject)
-			- [ksets](#ksets)
-			- [Subsystems](#subsystems)
-		- [Sysfs Operations](#sysfs-operations)
 		- [Simulating a keyboard hotplug in QEMU](#simulating-a-keyboard-hotplug-in-qemu)
+		- [Autoloading the module](#autoloading-the-module)
+		- [Udev rules](#udev-rules)
+		- [Device table](#device-table)
+	- [ex05 - Misc Character Driver](#ex05---misc-character-driver)
 	- [General applications sources](#general-applications-sources)
 
 ## ex00 - Building the kernel
@@ -113,117 +112,96 @@ To do so, apply your changes and commit them (you don't have to push). You can t
 
 ## ex04 - Device Linked Module
 
-[**Virtual Filesystem (VFS)**](https://en.wikipedia.org/wiki/Virtual_file_system): an abstraction layer sitting in between userspace and the filesystems implementation. When a syscall originates from the userspace (`open`, `read`, `write`...), the call transits via the VFS. This is the *strict* name of the kernel's abstraction layer that enables actions on the filesystems.
+You can peruse my understanding of the recommended reading at [LDD3_device_model.md](./LDD3_device_model.md).
 
-[**Pseudo Filesystem**](https://en.wikipedia.org/wiki/Synthetic_file_system): a filesystem *implementation* that exposes kernel state or lives in memory. It is rules by the VFS, but doesn't rely on a physical device. `/sys` and `/proc` are pseudo filesystems: even if they present files to the users, most live in memory and their contents are generated on demand by the kernel. For instance, the directories in `/proc` representing the running processes come and go as the processes live and die.
-
-[**sysfs**](https://en.wikipedia.org/wiki/Sysfs): a pseudo filesystem that exposes the kernel's devide model to user space in a hierarchy of files.
-
-### The device model
-
-- [Recommended reading: Ch. 14 of *Linux Device Drivers, Third Edition*](https://static.lwn.net/images/pdf/LDD3/ch14.pdf)
-- [*Linux Device Drivers, Third Edition*, full book](https://lwn.net/Kernel/LDD3/)
-
-**WARNING:** this is my understanding from the LDD3. It might be wrong, or outdated ; I mostly write those as a way to understand things better. **Feel free to create an issue or fork and update :)**
-
-#### kobject
-
-The struct that supports the entire device model. It's never used on its own, but instead embedded in other structs that rely on it.
-
-Most importantly, it holds a reference counter that allows the device to remain in memory as long as something is referencing it, and then be released as soon nothing does. That release function is a callback (which, in C, is a function pointer), held in `ktype`. This enables all devices of a given type to share a release function, reducing the memory needs while still allowing tailored behavior for different devices.
-
-It is declared thusly: (from `include/linux/kobject.h`):
-
-```c
-struct kobject {
-	const char				*name;
-	struct list_head		entry;
-	struct kobject			*parent;
-	struct kset				*kset;
-	const struct kobj_type	*ktype;
-	struct kernfs_node		*sd; /* sysfs directory entry */
-	struct kref				kref;
-
-	unsigned int state_initialized:1;
-	unsigned int state_in_sysfs:1;
-	unsigned int state_add_uevent_sent:1;
-	unsigned int state_remove_uevent_sent:1;
-	unsigned int uevent_suppress:1;
-
-#ifdef CONFIG_DEBUG_KOBJECT_RELEASE
-	struct delayed_work	release;
-#endif
-};
-```
-
-Note the `unsigned int` have `:1` appended to them. This is a **bit-field**, which allows us to pack the values of all five flags into the space of a single unsigned int (32 bits). This is significant, as it allows the developper to save on padding space, reducing the size of the struct.
-
-- *`container_of()`* is a macro used to recover the address of a containing struct from one of its member. It's used in places where the kernel only has, for instance, a pointer to a `kobj` member, and it needs to access the containing `cdev` struct. [Detailed explanations are available here](https://radek.io/posts/magical-container_of-macro/).
-
-#### ksets
-
-A `kset` is a collection of `kobj`. Any `kobj` is a `kset` is referenced by that `kset`.
-
-Best decribed by their comment:
-
-```c
-/**
- * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
- *
- * A kset defines a group of kobjects.  They can be individually
- * different "types" but overall these kobjects all want to be grouped
- * together and operated on in the same manner.  ksets are used to
- * define the attribute callbacks and other common events that happen to
- * a kobject.
- *
- * @list: the list of all kobjects for this kset
- * @list_lock: a lock for iterating over the kobjects
- * @kobj: the embedded kobject for this kset (recursion, isn't it fun...)
- * @uevent_ops: the set of uevent operations for this kset.  These are
- * called whenever a kobject has something happen to it so that the kset
- * can add new environment variables, or filter out the uevents if so
- * desired.
- */
-
-```
-
-It's worth noting that a `kset` contains a list of all the `kobjs` it holds, but also a single `kobj` that describes itself.
-
-#### Subsystems
-
-=> **THIS PART IS OUTDATED**
-
-The subsystems are the highest level representations of the device model. It's basically a struct containing a `kset` and a [rw_semaphore](https://www.kernel.org/doc/html/latest/locking/locktypes.html), and the driver's developper need not create any new ones. One should simply assign their kset to the appropriate subsystem (`/sys/block`, `/sys/device`...) so that it may show up at the correct place in user space and appear in the correct hierarchy.
-
-Examples of kobject and ksample usage are available in the kernel source tree, at `/sources/linux/samples/kobject/{kobject-example.c,kset-example.c}`.
-
-Here, I got lost and discovered the concept of [RCU](https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html) and the [percpu-rw-semaphore](https://docs.kernel.org/locking/percpu-rw-semaphore.html). Enjoy the sidequest[^1]!
-
-[^1]: The RCU semaphore is used to ensure that the kset's list of kobjects can only be modified by a single thread or CPU at a time, but read only operations may continue during part of the modification or destruction process ; [that is achieved by separating the process in two parts](https://www.kernel.org/doc/html/latest/RCU/rcu.html), removal then reclamation; it's used to [protect read-mostly linked lists](https://www.kernel.org/doc/html/latest/RCU/listRCU.html), such as `ksets`.
-
-### Sysfs Operations
-
-Now that we covered (vaguely) kobjects and understood that they are the structure at work behind every sysfs mechanism, we are going to look at the operations that rely on `kobjs`.
-
-For every directory that we find in /sys (which is normally where *sysfs* is mounted), there is an underlying `kobj` that was added with `kobject_add`. That directory name is specified by `kobject_set_name`, and its place in the hierarchy defined based on the `parent` tag. It contains kernel-generated file(s) representing the `kobj`'s attributes.
-
-All that is very nice and well, but I didn't find it really helpful to make the module autoload, so I've moved on to greener pastures. I admit that I relied on AI for this, since basic sources were pretty hard to come by.
-
-It's worth noting that my LFS runs `udev`, which will become relevant to the exercice soon.
+I found it a pretty unrelevant reading recommandation ; it mostly focuses on the inner working of `sysfs`, which helps only very marginally to write device drivers.
 
 ### Simulating a keyboard hotplug in QEMU
 
-I had to jump through a few hoops here, so I'll document it so you don't have to run in circles like me.
-
-**NB**: I run my VM with `--nographic` because there are few things I hate more than a VM's console ; mostly I communicate with the guest through SSH, but I also redirected the kernel boot messages to `/dev/ttyS0` so I could monitor the booting process.
-
-Now in order for us to "plug in" a keyboard, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controler, allowing us to connect a virtual keyboard.
+In order for us to "plug in" a keyboard our virtual machine, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controler, allowing us to connect a virtual keyboard.
 
 [^2]: XHCI stands for E[xtensible Host Controler Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
 
-Then, we have to `ctrl + c` `a` in the console to access the Qemu monitor. If that doesn't work for you, [you can read my book about it](qemu-sidequest.md).
+Then, we must gain access to the Qemu monitor. If you use `--nographic`, [you can read my book about it](qemu-sidequest.md#redirecting-the-qemu-monitor-to-a-tcp-socket-because-aint-nobody-got-time-for-that).
 
+Once you managed to access the Qemu monitor, you can use the [monitor command](https://www.qemu.org/docs/master/system/monitor.html) `device_add` and `device_del` to plug and unplug your keyboard. Here is the [list of USB devices](https://www.qemu.org/docs/master/system/devices/usb.html#connecting-usb-devices) supported by Qemu.
 
+In this instance, we care about `usb-kdb`:
+
+> usb-kbd<br>Standard USB keyboard. Will override the PS/2 keyboard (if present).
+
+`device_add` also needs an id (so `device_del` can remove it).
+
+In essence:
+
+```sh
+device_add usb-kbd,id=<id>
+
+device_del <id>
+```
+
+Then, in your guest, you can run:
+
+```sh
+udevadm monitor --kernel
+```
+
+That will display the kernel events as they happen, allowing you to see as your keyboard connects and disconnects. This allows us to get some informations we'll need later, but it's not mandatory ; said information can be recovered by inspecting the devices files or using `udev` tools (we will get to it).
+
+### Autoloading the module
+
+Now, as the subject hints, we have two way to go about making the module autoload.
+
+- A rules file, appropriate for your system.
+- Your updated code.
+
+- [udevadm](https://www.man7.org/linux/man-pages/man8/udevadm.8.html)
+
+### Udev rules
+
+- [Write Udev Rules](https://linuxconfig.org/tutorial-on-how-to-write-basic-udev-rules-in-linux)
+-
+
+### Device table
+
+The [Driver API documentation](https://docs.kernel.org/driver-api/usb/writing_usb_driver.html) of the Linux Kernel informs us of the following:
+
+> To enable the linux-hotplug system to load the driver automatically when the device is plugged in, you need to create a MODULE_DEVICE_TABLE. The following code tells the hotplug scripts that this module supports a single device with a specific vendor and product ID:
+
+```c
+/* table of devices that work with this driver */
+static struct usb_device_id skel_table [] = {
+        { USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
+        { }                      /* Terminating entry */
+};
+MODULE_DEVICE_TABLE (usb, skel_table);
+```
+
+> There are other macros that can be used in describing a struct usb_device_id for drivers that support a whole class of USB drivers. See usb.h for more information on this.
+
+`usb_device_id` allows us to specify informations describing one or several USB devices. To explain how, we have to go on a small(ish) sidequest to the USB protocol specification.
+
+USB devices are identified by a series of fields, the details of which can be found in section 9.6.1 of the [Universal Serial Bus 3.1 Specification](https://p2lu.github.io/posts/displayport/Universal_Serial_Bus_3_1_Specification.pdf), in the table 9-11 (page 455 of the PDF)[^3]. You can also [view the table here](./usb_device_fields.md).
+
+[^3]:Yes, finding this was very annoying - I had to go trough [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbspec/ns-usbspec-_usb_device_descriptor).
+
+Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which need to contain the values of `idVendor` and `idProduct`.Setting our usb module to be recognized by its vendor and product ID is a bit restrictive for a keyboard though. - it's useful for more specific devices, such as printers or, I don't know, a VR headset. We just want the module to load whenever we plug in any keyboard. The [USB header documentation](https://docs.kernel.org/driver-api/usb/usb.html#usb-header) tells us that:
+
+> **What Makes Good usb_device_id Tables:**
+
+> The most specific match specifiers use device descriptor data. These are commonly used with product-specific matches; the USB_DEVICE macro lets you provide vendor and product IDs, and you can also match against ranges of product revisions. These are widely used for devices with application or vendor specific bDeviceClass values.
+
+> Matches based on device class/subclass/protocol specifications are slightly more general; use the USB_DEVICE_INFO macro, or its siblings. These are used with **single-function devices** where bDeviceClass doesn’t specify that each interface has its own class.
+
+> Matches based on interface class/subclass/protocol are the most general; they let drivers bind to any interface on a **multiple-function device**. Use the USB_INTERFACE_INFO macro, or its siblings, to match class-per-interface style devices (as recorded in bInterfaceClass).
+
+Before we can choose between using USB_DEVICE_INFO or USB_INTERFACE_INFO, we must understand what is a single-function device VS a multipe-function device and which type keyboards belong to.
+
+Keyboards can be multiple-function devices (think a keaboard with a trackpad, for instance), and they inform the operating system of this fact by
+
+so the safest bet is to use [`USB_INTERFACE_INFO`](https://egeeks.github.io/kernal/usb/API-USB-INTERFACE-INFO.html).
+
+## ex05 - Misc Character Driver
 
 ## General applications sources
 

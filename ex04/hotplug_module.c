@@ -4,7 +4,7 @@
 #include "linux/mod_devicetable.h" // MODULE_DEVICE_TABLE
 #include "linux/hid.h" // USB macros
 
-const struct usb_device_id my_usb_id[] = {
+const struct usb_device_id 	[] = {
 	{USB_INTERFACE_INFO(USB_INTERFACE_CLASS_HID,
 						USB_INTERFACE_SUBCLASS_BOOT,
 						USB_INTERFACE_PROTOCOL_KEYBOARD)},

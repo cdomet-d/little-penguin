@@ -1,10 +1,23 @@
-# Do you hate VM consoles ? Me too
+# The Qemu Sidequest
+
+Because working in VM also means learning to use VMs.
+
+- [The Qemu Sidequest](#the-qemu-sidequest)
+	- [1. Do you hate VM consoles ? Me too](#1-do-you-hate-vm-consoles--me-too)
+		- [1.1 `--nographic` and what it does](#11---nographic-and-what-it-does)
+			- [1.1.1 Issue 1: Silent Boot](#111-issue-1-silent-boot)
+			- [1.1.2 Issue 2: Lost Input](#112-issue-2-lost-input)
+		- [1.2 Redirecting the Qemu monitor to a TCP socket (because ain't nobody got time for that)](#12-redirecting-the-qemu-monitor-to-a-tcp-socket-because-aint-nobody-got-time-for-that)
+	- [2. Simulating a keyboard hotplug](#2-simulating-a-keyboard-hotplug)
+
+
+## 1. Do you hate VM consoles ? Me too
 
 I hate VM consoles, so I use `--nographic` and SSH to run headless most of the time.
 
 However, sometimes, it's nice to have more information (during boot, for instance, to see the kernel and GRUB's output). It could also be pretty cool to be able to input stuff in the terminal you're using to run your VM - reduces the amount of open terminals, for instance.
 
-## `--nographic` and what it does
+### 1.1 `--nographic` and what it does
 
 From the [Qemu Invocation Documentation](https://www.qemu.org/docs/master/system/invocation.html):
 
@@ -14,7 +27,7 @@ From the [Qemu Invocation Documentation](https://www.qemu.org/docs/master/system
 
 This is the part that interrests us: *The emulated serial port is redirected on the console and muxed with the monitor (unless redirected elsewhere explicitly).*
 
-## Issue 1: Silent Boot
+#### 1.1.1 Issue 1: Silent Boot
 
 The kernel, by default, uses `printk` to send messages to `/dev/tty0`. `tty0` is always the virtual console that is currently in the foreground. For its part, `GRUB` defaults to the computer's [VGA text-mode](https://en.wikipedia.org/wiki/VGA_text_mode), which is a region of memory mapped to the video card.
 
@@ -47,7 +60,7 @@ menuentry "GNU/Linux, Linux 7.3 Torvalds - LITTLE PENGUIN" {
 }
 ```
 
-## Issue 2: Lost Input
+#### 1.1.2 Issue 2: Lost Input
 
 We did give GRUB instructions to listen to keystrokes from `/dev/ttyS0`, but once the booting process is over, GRUB says bye and hands over control to the kernel, and then we're on our own - the console we specified for the kernel in `grub.cfg` is only for output.
 
@@ -65,8 +78,40 @@ If you use `SysV`, simply add that line to your [`/etc/inittab` file](https://ma
 [UNIQUE_ID]:12345:respawn:/sbin/agetty -L --noclear ttyS0 115200
 ```
 
-## Redirecting the Qemu monitor to a TCP socket (because ain't nobody got time for that)
+### 1.2 Redirecting the Qemu monitor to a TCP socket (because ain't nobody got time for that)
 
 Since we used the serial to output the content of our guest, access to the Qemu monitor can get a bit finnicky. I got tired of it real quick and instead chose to redirect the monitor to a TCP port that I access with `nc`.
 
 If you would like to do the same, just add `-monitor tcp:127.0.0.1:4444,server,nowait \` to your Qemu invocation, then run `nc 127.0.0.1 4444`. Voila, you have monitor access !
+
+## 2. Simulating a keyboard hotplug
+
+In order for us to "plug in" a keyboard into our virtual machine, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controller, allowing us to connect a virtual keyboard.
+
+[^2]: XHCI stands for E[xtensible Host Controller Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
+
+Then, we must gain access to the Qemu monitor. If you use `--nographic`, you can read my book about it.
+
+Once you manage to access the Qemu monitor, you can use the [monitor command](https://www.qemu.org/docs/master/system/monitor.html) `device_add` and `device_del` to plug and unplug your keyboard. Here is the [list of USB devices](https://www.qemu.org/docs/master/system/devices/usb.html#connecting-usb-devices) supported by Qemu.
+
+In this instance, we care about `usb-kbd`:
+
+> usb-kbd<br>Standard USB keyboard. Will override the PS/2 keyboard (if present).
+
+`device_add` also needs an id (so `device_del` can remove it).
+
+In essence:
+
+```sh
+device_add usb-kbd,id=<id>
+
+device_del <id>
+```
+
+Then, in your guest, you can run:
+
+```sh
+udevadm monitor --kernel
+```
+
+That will display the kernel events as they happen, allowing you to see as your keyboard connects and disconnects. This allows us to get some information we'll need later, but it's not mandatory ; said information can be recovered by inspecting the device files or using `udev` tools (we will get to it).

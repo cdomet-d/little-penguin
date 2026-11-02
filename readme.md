@@ -5,19 +5,22 @@ The genus Eudyptula from Ancient Greek εὖ (eû), meaning "well", δύπτης
 For many years, a white-flippered form of the little penguin found only in North Canterbury, New Zealand was considered either a separate species, Eudyptula albosignata, or just a subspecies, Eudyptula minor albosignata. Analysis of mtDNA revealed that Eudyptula falls instead into two groups: a western one, found along the southern coast of Australia and the Otago region of New Zealand, and another found in the rest of New Zealand.[4] E. novaehollandiae probably arrived in New Zealand from Australia less than 500 years ago, following the local extinction of E. minor in Otago.[5]
 [The Eudyptula Challenge](http://eudyptula-challenge.org/)
 
-- Little Pinguin
-    - ex00 - Building the kernel
-    - ex01 - Hello World Module
-        - Sources
-    - ex02 - Patching
-    - ex03 - Coding Style
-    - ex04 - Device Linked Module
-        - Simulating a keyboard hotplug in Qemu
-        - Autoloading the module
-        - Udev rules
-        - Device table
-    - ex05 - Misc Character Driver
-    - General applications sources
+- [Little Pinguin](#little-pinguin)
+	- [ex00 - Building the kernel](#ex00---building-the-kernel)
+	- [ex01 - Hello World Module](#ex01---hello-world-module)
+		- [Sources](#sources)
+	- [ex02 - Patching](#ex02---patching)
+	- [ex03 - Coding Style](#ex03---coding-style)
+	- [ex04 - Device Linked Module](#ex04---device-linked-module)
+		- [Simulating a keyboard hotplug in Qemu](#simulating-a-keyboard-hotplug-in-qemu)
+		- [Autoloading the module](#autoloading-the-module)
+		- [Udev rules](#udev-rules)
+		- [Device table](#device-table)
+			- [The `bDeviceClass`](#the-bdeviceclass)
+			- [Single Function and Multi-Function USB devices](#single-function-and-multi-function-usb-devices)
+		- [So, `USB_DEVICE_INFO` or `USB_INTERFACE_INFO` ?](#so-usb_device_info-or-usb_interface_info-)
+	- [ex05 - Misc Character Driver](#ex05---misc-character-driver)
+	- [General applications sources](#general-applications-sources)
 
 ## ex00 - Building the kernel
 
@@ -118,35 +121,7 @@ I found it a pretty irrelevant reading recommendation ; it mostly focuses on the
 
 ### Simulating a keyboard hotplug in Qemu
 
-In order for us to "plug in" a keyboard into our virtual machine, there are several things we have to do. First, we must add USB support to the VM itself by adding `-device qemu-xhci`[^2] to our startup command. That gives the guest a USB controller, allowing us to connect a virtual keyboard.
-
-[^2]: XHCI stands for E[xtensible Host Controller Interface](https://en.wikipedia.org/wiki/Extensible_Host_Controller_Interface). Documentation for [`qemu-xhci`](https://www.qemu.org/docs/master/system/devices/usb.html).
-
-Then, we must gain access to the Qemu monitor. If you use `--nographic`, you can read my book about it.
-
-Once you manage to access the Qemu monitor, you can use the [monitor command](https://www.qemu.org/docs/master/system/monitor.html) `device_add` and `device_del` to plug and unplug your keyboard. Here is the [list of USB devices](https://www.qemu.org/docs/master/system/devices/usb.html#connecting-usb-devices) supported by Qemu.
-
-In this instance, we care about `usb-kbd`:
-
-> usb-kbd<br>Standard USB keyboard. Will override the PS/2 keyboard (if present).
-
-`device_add` also needs an id (so `device_del` can remove it).
-
-In essence:
-
-```sh
-device_add usb-kbd,id=<id>
-
-device_del <id>
-```
-
-Then, in your guest, you can run:
-
-```sh
-udevadm monitor --kernel
-```
-
-That will display the kernel events as they happen, allowing you to see as your keyboard connects and disconnects. This allows us to get some information we'll need later, but it's not mandatory ; said information can be recovered by inspecting the device files or using `udev` tools (we will get to it).
+See [The Qemu Sidequest, part 2](./qemu-sidequest.md)
 
 ### Autoloading the module
 
@@ -160,7 +135,6 @@ Now, as the subject hints, we have two ways to go about making the module autolo
 ### Udev rules
 
 - [Write Udev Rules](https://linuxconfig.org/tutorial-on-how-to-write-basic-udev-rules-in-linux)
--
 
 ### Device table
 
@@ -177,29 +151,43 @@ static struct usb_device_id skel_table [] = {
 MODULE_DEVICE_TABLE (usb, skel_table);
 ```
 
-> There are other macros that can be used in describing a struct usb_device_id for drivers that support a whole class of USB drivers. See usb.h for more information on this.
+> There are other macros that can be used in describing a struct `usb_device_id` for drivers that support a whole class of USB drivers. See usb.h for more information on this.
 
 `usb_device_id` allows us to specify information describing one or several USB devices. To explain how, we have to go on a small(ish) sidequest to the USB protocol specification.
 
-USB devices are identified by a series of fields, the details of which can be found in section 9.6.1 of the [Universal Serial Bus 3.1 Specification](https://p2lu.github.io/posts/displayport/Universal_Serial_Bus_3_1_Specification.pdf), in the table 9-11 (page 455 of the PDF)[^3]. You can also [view the table here](./usb_device_fields.md).
+Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which need to contain the values of `idVendor` and `idProduct` (which are found in the Device Descriptor, explained a bit later in [this section](#the-bdeviceclass)). Setting our USB module to be recognized by its vendor and product ID is a bit restrictive for our case, since we just want the module to load whenever we plug in any keyboard.
 
-[^3]:Yes, finding this was very annoying - I had to go through [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/usbspec/ns-usbspec-_usb_device_descriptor).
+So we must look for alternatives. The [USB header documentation](https://docs.kernel.org/driver-api/usb/usb.html#usb-header) tells us that:
 
-Our example snippet uses `USB_SKEL_VENDOR_ID` and `USB_SKEL_PRODUCT_ID`, which need to contain the values of `idVendor` and `idProduct`. Setting our usb module to be recognized by its vendor and product ID is a bit restrictive for a keyboard though. - it's useful for more specific devices, such as printers or, I don't know, a VR headset. We just want the module to load whenever we plug in any keyboard. The [USB header documentation](https://docs.kernel.org/driver-api/usb/usb.html#usb-header) tells us that:
+> **What Makes Good `usb_device_id` Tables:**
 
-> **What Makes Good usb_device_id Tables:**
+> The most specific match specifiers use device descriptor data. These are commonly used with product-specific matches; the `USB_DEVICE` macro lets you provide vendor and product IDs, and you can also match against ranges of product revisions. These are widely used for devices with application or vendor specific `bDeviceClass` values.
 
-> The most specific match specifiers use device descriptor data. These are commonly used with product-specific matches; the USB_DEVICE macro lets you provide vendor and product IDs, and you can also match against ranges of product revisions. These are widely used for devices with application or vendor specific bDeviceClass values.
+> Matches based on device class/subclass/protocol specifications are slightly more general; use the `USB_DEVICE_INFO` macro, or its siblings. These are used with **single-function devices** where `bDeviceClass` doesn’t specify that each interface has its own class.
 
-> Matches based on device class/subclass/protocol specifications are slightly more general; use the USB_DEVICE_INFO macro, or its siblings. These are used with **single-function devices** where bDeviceClass doesn’t specify that each interface has its own class.
+> Matches based on interface class/subclass/protocol are the most general; they let drivers bind to any interface on a **multiple-function device**. Use the `USB_INTERFACE_INFO` macro, or its siblings, to match class-per-interface style devices (as recorded in bInterfaceClass).
 
-> Matches based on interface class/subclass/protocol are the most general; they let drivers bind to any interface on a **multiple-function device**. Use the USB_INTERFACE_INFO macro, or its siblings, to match class-per-interface style devices (as recorded in bInterfaceClass).
+So it appears we have several options, from most to least restrictive:
 
-Before we can choose between using USB_DEVICE_INFO or USB_INTERFACE_INFO, we must understand what a single-function device is VS a multiple-function device and which type keyboards belong to.
+- using vendor and product IDs,
+- using USB_DEVICE_INFO,
+- using USB_INTERFACE_INFO.
 
-Keyboards can be multiple-function devices (think a keyboard with a trackpad, for instance), and they inform the operating system of this fact by
+Since we already excluded the vendor and product IDs as too restrictive, we still have to choose between using `USB_DEVICE_INFO` or `USB_INTERFACE_INFO`. But before going into that, we are going to backtrack a little to define what we are even talking about.
 
-so the safest bet is to use [`USB_INTERFACE_INFO`](https://egeeks.github.io/kernal/usb/API-USB-INTERFACE-INFO.html).
+#### The `bDeviceClass`
+
+When a USB device is plugged in, it must be configured. That configuration is a negotiation that happens between the host and the device. The first structure that is sent is the **device descriptor**, which is a structure described in section 9.6.1 of the [Universal Serial Bus 3.2 Specification](./.assets/USB_3.2_revision_1-1.pdf), in table 9-11 (pages 380 - 381 of the PDF, pages 349 - 350 by the document's own page numbers)[^3]. You can also [view the table here](./usb_device_fields.md).
+
+The list of values that `bDeviceClass` can take is specified on the USB-IF website; [here is the list](https://www.usb.org/defined-class-codes). You can see that the "Descriptor usage" column can be "Device", "Interface", or both. Keep that in mind, it will become relevant in a minute.
+
+#### Single Function and Multi-Function USB devices
+
+USB devices can have a single function (like a USB hub) or several (like a webcam that has a microphone). Keyboards, deceptively, may have several functionalities (for instance, a laptop keyboard with a trackpad). Multi-function devices (or [composite devices](https://laptopjudge.com/what-is-a-usb-composite-device/)) pack several functionalities into one; they do this by exposing *interfaces* to which the kernel binds individual drivers. A more in-depth explanation of how that works is available in the [USB device layout](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-device-layout) documentation.
+
+### So, `USB_DEVICE_INFO` or `USB_INTERFACE_INFO` ?
+
+`USB_DEVICE_INFO` and `USB_INTERFACE_INFO` are macros used to tell the module where to check whether the device that just connected matches the type of device the driver was written for. The first tells the module to look in `bDeviceClass`, and the second implies that the module expects the device it will control to have several interfaces, and to connect to one of them. To decide which to use, the developer must figure out which device class the device they are writing a driver for belongs to. If the device class's "Descriptor usage" column states "Device", it is safe to use `USB_DEVICE_INFO`; if it is "Interface", one should use `USB_INTERFACE_INFO`; if it is both, the most restrictive identifier must be chosen.
 
 ## ex05 - Misc Character Driver
 

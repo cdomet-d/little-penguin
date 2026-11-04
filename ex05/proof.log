@@ -1,0 +1,25 @@
+
+[1;36m━━ Device exists ━━[0m
+[1;33m$ ls -la /dev | grep forty[0m
+crw-rw-rw-  1 root root     10, 258 Nov  4 16:35 fortytwo
+[1;32mExit status: 0
+[0m
+[1;36m━━ Read Operation ━━[0m
+[1;33m$ cat /dev/fortytwo[0m
+cdomet-d
+[1;32mExit status: 0
+[0m
+[1;36m━━ Valid Write Operation ━━[0m
+[1;33m$ echo cdomet-d > /dev/fortytwo[0m
+[1;32mExit status: 0
+[0m
+[1;36m━━ Invalid Write Operation ━━[0m
+[1;33m$ echo cdomet-di > /dev/fortytwo[0m
+/bin/sh: line 1: echo: write error: Operation not permitted
+[1;31mExit status: 1
+[0m
+[1;36m━━ Invalid Write Operation ━━[0m
+[1;33m$ echo > /dev/fortytwo[0m
+/bin/sh: line 1: echo: write error: Operation not permitted
+[1;31mExit status: 1
+[0ma

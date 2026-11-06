@@ -329,6 +329,29 @@ The following links (and the one above) explain everything there is to know abou
 
 ## ex06 - Linux Next
 
+
+
+The Linux Kernel developpement system is based upon a chain of trust between Linux Thorvalds and an array of sybsystem maintainers that choose which patches get applied to the mainline repository. The subsystem trees are dedicated to specific topics (networking, specific architecture support, memory management, video devices, etc) and have a dedicated maintainer, who is repsonsible for the quality and stability of the code being pushed to the main kernel.
+
+The cycle goes like this:
+
+```mermaid
+flowchart TD
+    A([New development cycle starts]) --> B["Merge window opens<br/>~2 weeks"]
+    B --> C["Stable, accepted code merged into mainline<br/>~1,000 patches/day<br/>(collected, tested and staged beforehand)"]
+    C --> D["Linus closes the window<br/>and releases 9.x-rc1"]
+    D --> E["Stabilization phase<br/>6 to 10 weeks"]
+    E --> F["Only fixes accepted<br/>new features wait for the next cycle"]
+    F --> G["New -rc roughly weekly<br/>patch rate slows over time"]
+    G --> H{"Stable enough?<br/>(usually between -rc6 and -rc9)"}
+    H -- No --> G
+    H -- Yes --> I(["Final release 9.x"])
+	I --> A
+    X["Exception: drivers for previously unsupported hardware<br/>(if they touch no in-tree code)"] -.->|can be added at any time| E
+```
+
+-next trees are git trees aggregating the Linux subsystem trees as they get patched. The purpose is to have a place where all patches can live together before meeting in the main tree, as to detect breaking changes and incompatibilities ahead of time. They form the Linux-Next tree, which is, basically, a preview of what the mainline will look like after the next merge window.
+
 - [Working with Linux Next](https://www.kernel.org/doc/man-pages/linux-next.html)
 
 ## General applications sources
